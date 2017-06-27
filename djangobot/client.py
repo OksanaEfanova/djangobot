@@ -1,7 +1,7 @@
 import json
 
 from autobahn.twisted.websocket import (WebSocketClientProtocol,
-    WebSocketClientFactory, connectWS)
+                                        WebSocketClientFactory, connectWS)
 import channels
 from twisted.internet import reactor, ssl
 from twisted.internet.ssl import ClientContextFactory
@@ -19,6 +19,7 @@ def pack(message):
     """
     return json.dumps(message).encode('utf8')
 
+
 def unpack(text):
     """
     Decode & Load
@@ -34,6 +35,7 @@ class SlackClientProtocol(WebSocketClientProtocol):
     This defines how messages from Slack are passed onto
     Channels and how a specific channel is passed to Slack
     """
+
     def __init__(self, *args, **kwargs):
         super(SlackClientProtocol, self).__init__(*args, **kwargs)
         self._message_id = 0
@@ -45,45 +47,6 @@ class SlackClientProtocol(WebSocketClientProtocol):
         """
         self._message_id += 1
         return self._message_id
-
-    def make_message(self, text, channel):
-        """
-        High-level function for creating messages. Return packed bytes.
-
-        Args:
-            text: {str}
-            channel: {str} Either name or ID
-        """
-        try:
-            channel_id = self.slack.channel_from_name(channel)['id']
-        except ValueError:
-            channel_id = channel
-        return pack({
-            'text': text,
-            'type': 'message',
-            'channel': channel_id,
-            'id': self.message_id,
-        })
-
-    def translate(self, message):
-        """
-        Translate machine identifiers into human-readable
-        """
-        # translate user
-        try:
-            user_id = message.pop('user')
-            user = self.slack.user_from_id(user_id)
-            message[u'user'] = user['name']
-        except (KeyError, IndexError, ValueError):
-            pass
-        # translate channel
-        try:
-            channel_id = message.pop('channel')
-            channel = self.slack.channel_from_id(channel_id)
-            message[u'channel'] = channel['name']
-        except (KeyError, IndexError, ValueError):
-            pass
-        return message
 
     def onOpen(self):
         """
@@ -98,22 +61,14 @@ class SlackClientProtocol(WebSocketClientProtocol):
 
         Note: The slack API only sends JSON, isBinary will always be false.
         """
-        msg = self.translate(unpack(payload))
+        msg = unpack(payload)
         if 'type' in msg:
             channel_name = 'slack.{}'.format(msg['type'])
             print('Sending on {}'.format(channel_name))
             channels.Channel(channel_name).send({'text': pack(msg)})
 
-    def sendSlack(self, message):
-        """
-        Send message to Slack
-        """
-        channel = message.get('channel', 'general')
-        self.sendMessage(self.make_message(message['text'], channel))
-
 
 class SlackClientFactory(WebSocketClientFactory):
-
     def run(self):
         if self.isSecure:
             contextFactory = ssl.ClientContextFactory()

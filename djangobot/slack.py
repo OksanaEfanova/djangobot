@@ -3,7 +3,6 @@ import os
 
 import requests
 
-
 logger = logging.getLogger('slackapi')
 
 
@@ -35,12 +34,6 @@ class SlackAPI(object):
         self.verify = verify
 
         # Attributes backing properties
-        self._channels = []
-        self._users = []
-
-        if not lazy:
-            _ = self.channels
-            _ = self.users
 
     def _call_api(self, method, params=None):
         """
@@ -64,24 +57,6 @@ class SlackAPI(object):
                 raise Exception(msg.format(url=url, response=response))
         return response
 
-    @property
-    def channels(self):
-        """
-        List of channels of this slack team
-        """
-        if not self._channels:
-            self._channels = self._call_api('channels.list')['channels']
-        return self._channels
-
-    @property
-    def users(self):
-        """
-        List of users of this slack team
-        """
-        if not self._users:
-            self._users = self._call_api('users.list')['members']
-        return self._users
-
     # API Methods
     def auth_test(self):
         """
@@ -94,32 +69,3 @@ class SlackAPI(object):
         Call rtm.start
         """
         return self._call_api('rtm.start')
-
-    # Translation
-    def channel_from_name(self, name):
-        """
-        Return the channel dict given by human-readable {name}
-        """
-        try:
-            channel = [channel for channel in self.channels
-                       if channel['name'] == name][0]
-        except IndexError:
-            raise ValueError('Unknown channel for name: "{}"'.format(name))
-        return channel
-
-    def user_from_id(self, user_id):
-        try:
-            user = [user for user in self.users
-                    if user['id'] == user_id][0]
-        except IndexError:
-            raise ValueError('Unknown user for id: "{}"'.format(user_id))
-        return user
-
-    def channel_from_id(self, channel_id):
-        try:
-            channel = [channel for channel in self.channels
-                       if channel['id'] == channel_id][0]
-        except IndexError:
-            raise ValueError('Unknown channel for id: "{}"'.format(channel_id))
-        else:
-            return channel
